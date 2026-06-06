@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secure Password Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Lock/Unlock Authentication Overlay -->
+  <div id="auth-overlay" class="overlay">
+    <div class="auth-card">
+      <div id="create-vault-section" style="display: none;">
+        <h2>Initialize Password Vault</h2>
+        <p>Set a strong master password to encrypt your credentials.</p>
+        <div class="form-group">
+          <label for="new-master-password">Master Password</label>
+          <input type="password" id="new-master-password" placeholder="Min. 8 characters" required>
+        </div>
+        <div class="form-group">
+          <label for="confirm-master-password">Confirm Master Password</label>
+          <input type="password" id="confirm-master-password" placeholder="Repeat master password" required>
+        </div>
+        <button id="create-vault-btn" class="btn btn-primary">Create Secure Vault</button>
+      </div>
+
+      <div id="unlock-vault-section" style="display: none;">
+        <h2>Unlock Vault</h2>
+        <p>Enter your master password to access your credentials.</p>
+        <div class="form-group">
+          <label for="master-password">Master Password</label>
+          <input type="password" id="master-password" placeholder="Enter master password" required>
+        </div>
+        <button id="unlock-vault-btn" class="btn btn-primary">Unlock Vault</button>
+      </div>
+      
+      <p id="auth-error-msg" class="error-msg" style="display: none;"></p>
+    </div>
+  </div>
+
+  <!-- Main Application Content -->
+  <div id="app-content" style="display: none;">
+    <!-- Original Dorse Code Translator UI (Kept exactly as it is) -->
+    <div class="container" id="dorse-translator-section">
+      <div class="section-header">
+        <h1>Dorse Code Translator</h1>
+      </div>
+      <textarea id="input" placeholder="Type text to encode or Dorse code to decode..."></textarea>
+      <div class="output">
+        <textarea id="output" readonly placeholder="Output will appear here..."></textarea>
+      </div>
+    </div>
+
+    <!-- Password Manager Vault Section -->
+    <div class="container" id="vault-section">
+      <div class="vault-header">
+        <h1>Secure Password Vault</h1>
+        <div class="vault-actions">
+          <button id="show-change-pw-btn" class="btn btn-secondary">Change Master Password</button>
+          <button id="lock-vault-btn" class="btn btn-danger">Lock Vault</button>
+        </div>
+      </div>
+
+      <!-- Change Master Password Form Modal -->
+      <div id="change-pw-modal" class="modal-section" style="display: none;">
+        <h3>Change Master Password</h3>
+        <p>Re-encrypts the vault with a new master password.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <input type="password" id="current-master-password" placeholder="Current Master Password">
+          </div>
+          <div class="form-group">
+            <input type="password" id="new-master-pw" placeholder="New Master Password (min. 8 chars)">
+          </div>
+          <div class="form-group">
+            <input type="password" id="confirm-new-master-pw" placeholder="Confirm New Password">
+          </div>
+        </div>
+        <div class="form-row-buttons">
+          <button id="submit-change-pw-btn" class="btn btn-primary">Save New Password</button>
+          <button id="cancel-change-pw-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+        <p id="change-pw-error-msg" class="error-msg" style="display: none;"></p>
+      </div>
+
+      <!-- Add/Edit Password Form -->
+      <div id="password-form-section" class="form-section">
+        <h3 id="form-title">Add New Credential</h3>
+        <input type="hidden" id="entry-id">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="service-input">Service / Website</label>
+            <input type="text" id="service-input" placeholder="e.g. github.com" required>
+          </div>
+          <div class="form-group">
+            <label for="username-input">Username / Email</label>
+            <input type="text" id="username-input" placeholder="e.g. email@example.com" required>
+          </div>
+          <div class="form-group">
+            <label for="password-input">Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="password-input" placeholder="Secret password" required>
+              <button id="toggle-pass-visibility-btn" type="button" class="btn-icon">👁️</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-row-buttons">
+          <button id="save-entry-btn" class="btn btn-success">Save Credential</button>
+          <button id="clear-form-btn" class="btn btn-secondary">Clear</button>
+          <button id="generate-pass-btn" class="btn btn-accent">Generate Password</button>
+        </div>
+        <p id="vault-action-error-msg" class="error-msg" style="display: none;"></p>
+      </div>
+
+      <!-- Password Entries List -->
+      <div class="entries-section">
+        <div class="entries-header">
+          <h3>Stored Credentials</h3>
+          <input type="text" id="search-input" placeholder="🔍 Search by service or username...">
+        </div>
+        
+        <div class="table-wrapper">
+          <table class="entries-table">
+            <thead>
+              <tr>
+                <th>Service / Website</th>
+                <th>Username / Email</th>
+                <th>Password</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="password-entries-list">
+              <!-- Dynamically populated via Python API -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
