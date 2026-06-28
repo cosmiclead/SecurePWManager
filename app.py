@@ -7,6 +7,9 @@ import webview
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives import hashes
+import openpyxl
+import msoffcrypto
+from msoffcrypto.format.ooxml import OOXMLFile
 
 import sys
 
@@ -45,7 +48,7 @@ MAX_FAILED_ATTEMPTS = 3
 INITIAL_LOCKOUT_DURATION = 30  # seconds
 
 DEFAULT_DORSE = {
-  "_":"-...-","A":"...",	"a":"....-.",	"0":"--...",
+   "_":"-...-","A":"...",	"a":"....-.",	"0":"--...",
   "!":".--.-.",	"B":"--..",	"b":"-..--",	"1":".....",
   ";":"..--..",	"C":"..",	  "c":"--.--",	"2":"---..",
   "#":".-..--",	"D":"--.-",	"d":"--.-.",	"3":"-----",
@@ -64,13 +67,14 @@ DEFAULT_DORSE = {
   "^":".-.-..",	"Q":"-.-",	"q":"...-.",			
   "<":"-.--.-",	"R":"..-.",	"r":"...-..",			
   "=":".-.-.-",	"S":"-..",	"s":"..--.",			
-  ">":"-.---",	"T":"---",	"t":".--.-",			
+  ">":".-.---",	"T":"---",	"t":".--.-",			
   "?":"...--.",	"U":".-",	  "u":"..-.-",			
   "@":"---...",	"V":"-.",	  "v":"----",			
   "{":"-.--.",	"W":"....",	"w":".-.--",			
   "|":"-....-",	"X":"--",	  "x":"-.---",			
   "}":"..-..-",	"Y":"--.",	"y":"-.-.-",			
-  "~":"-.-.-.",	"Z":"..-",	"z":".-.-",			
+  "~":"-.-.-.",	"Z":"..-",	"z":".-.-"		
+			
 }
 
 class VaultManager:
@@ -400,6 +404,210 @@ class Api:
             return {"success": True, "config": DEFAULT_DORSE}
         except Exception as e:
             return {"success": False, "error": f"Failed to reset: {str(e)}"}
+
+    def export_credentials_excel(self, master_password):
+        if self.vault_mgr.key is None or self.vault_mgr.passwords is None:
+            return {"success": False, "error": "Vault is locked."}
+        
+        if not master_password:
+            return {"success": False, "error": "Password cannot be empty."}
+            
+        # Verify the master password
+        if not self.vault_mgr.verify_master_password(master_password):
+            return {"success": False, "error": "Incorrect master password."}
+            
+        if not webview.windows:
+            return {"success": False, "error": "Active window not found."}
+            
+        # Open save file dialog on GUI/Main thread
+        try:
+            file_path = webview.windows[0].create_file_dialog(
+                webview.SAVE_DIALOG,
+                file_types=('Excel files (*.xlsx)', 'All files (*.*)'),
+                save_filename='credentials_backup.xlsx'
+            )
+        except Exception as e:
+            return {"success": False, "error": f"Failed to open save dialog: {str(e)}"}
+        
+        if not file_path:
+            # User cancelled the save dialog
+            return {"success": True, "cancelled": True}
+            
+        if isinstance(file_path, (tuple, list)):
+            if len(file_path) == 0:
+                return {"success": True, "cancelled": True}
+            file_path = file_path[0]
+            
+        if not file_path:
+            return {"success": True, "cancelled": True}
+            
+        # Create temp file in DATA_DIR
+        temp_file_path = os.path.join(DATA_DIR, f"temp_{uuid.uuid4().hex}.xlsx")
+        
+        try:
+            # Create unencrypted workbook
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "Credentials"
+            
+            # Write headers
+            ws.append(["Service / Website", "Username / Email", "Password"])
+            
+            # Write password entries
+            for entry in self.vault_mgr.passwords:
+                ws.append([entry.get("service", ""), entry.get("username", ""), entry.get("password", "")])
+                
+            # Set columns auto-width for professional layout
+            for col in ws.columns:
+                max_len = max(len(str(cell.value or '')) for cell in col)
+                col_letter = openpyxl.utils.get_column_letter(col[0].column)
+                ws.column_dimensions[col_letter].width = max(max_len + 3, 15)
+                
+            # Save the workbook to temporary file
+            wb.save(temp_file_path)
+            
+            # Encrypt using msoffcrypto-tool OOXMLFile
+            with open(temp_file_path, "rb") as f:
+                office_file = OOXMLFile(f)
+                with open(file_path, "wb") as out:
+                    office_file.encrypt(master_password, out)
+                    
+            return {"success": True, "cancelled": False}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to export credentials: {str(e)}"}
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_file_path):
+                try:
+                    os.remove(temp_file_path)
+                except Exception as ex:
+                    print(f"Error removing temporary export file: {ex}")
+
+    def import_credentials_excel(self, excel_password):
+        if self.vault_mgr.key is None or self.vault_mgr.passwords is None:
+            return {"success": False, "error": "Vault is locked."}
+            
+        if not webview.windows:
+            return {"success": False, "error": "Active window not found."}
+            
+        # Open file dialog on GUI/Main thread
+        try:
+            file_path = webview.windows[0].create_file_dialog(
+                webview.OPEN_DIALOG,
+                file_types=('Excel files (*.xlsx)', 'All files (*.*)')
+            )
+        except Exception as e:
+            return {"success": False, "error": f"Failed to open dialog: {str(e)}"}
+            
+        if not file_path:
+            return {"success": True, "cancelled": True}
+            
+        if isinstance(file_path, (tuple, list)):
+            if len(file_path) == 0:
+                return {"success": True, "cancelled": True}
+            file_path = file_path[0]
+            
+        if not file_path:
+            return {"success": True, "cancelled": True}
+            
+        # Check if the Excel file is encrypted
+        try:
+            with open(file_path, "rb") as f:
+                office_file = msoffcrypto.OfficeFile(f)
+                is_enc = office_file.is_encrypted()
+        except Exception as e:
+            return {"success": False, "error": f"Failed to check file encryption: {str(e)}"}
+            
+        temp_decrypted_path = None
+        load_path = file_path
+        
+        if is_enc:
+            if not excel_password:
+                return {"success": False, "error": "The Excel file is password-protected. Please enter the decryption password."}
+                
+            temp_decrypted_path = os.path.join(DATA_DIR, f"temp_import_{uuid.uuid4().hex}.xlsx")
+            try:
+                with open(file_path, "rb") as f:
+                    office_file = msoffcrypto.OfficeFile(f)
+                    office_file.load_key(password=excel_password)
+                    with open(temp_decrypted_path, "wb") as out:
+                        office_file.decrypt(out)
+                load_path = temp_decrypted_path
+            except Exception as e:
+                if os.path.exists(temp_decrypted_path):
+                    try:
+                        os.remove(temp_decrypted_path)
+                    except Exception:
+                        pass
+                return {"success": False, "error": f"Failed to decrypt Excel file: Incorrect password or invalid file format. ({str(e)})"}
+                
+        # Read the Excel sheet
+        try:
+            wb = openpyxl.load_workbook(load_path, data_only=True)
+            ws = wb.active
+            
+            rows = list(ws.iter_rows(values_only=True))
+            if not rows:
+                return {"success": False, "error": "The Excel sheet is empty."}
+                
+            header = [str(cell).strip().lower() if cell is not None else "" for cell in rows[0]]
+            
+            # Map headers to indices
+            service_idx = -1
+            username_idx = -1
+            password_idx = -1
+            
+            for idx, col_name in enumerate(header):
+                if "service" in col_name or "website" in col_name:
+                    service_idx = idx
+                elif "username" in col_name or "email" in col_name:
+                    username_idx = idx
+                elif "password" in col_name:
+                    password_idx = idx
+                    
+            if service_idx == -1 or username_idx == -1 or password_idx == -1:
+                return {
+                    "success": False,
+                    "error": "Invalid Excel structure. Could not find column headers for 'Service', 'Username', and 'Password'."
+                }
+                
+            imported_count = 0
+            for row_cells in rows[1:]:
+                # Skip empty rows
+                if all(cell is None or str(cell).strip() == "" for cell in row_cells):
+                    continue
+                    
+                service = str(row_cells[service_idx]).strip() if service_idx < len(row_cells) and row_cells[service_idx] is not None else ""
+                username = str(row_cells[username_idx]).strip() if username_idx < len(row_cells) and row_cells[username_idx] is not None else ""
+                password = str(row_cells[password_idx]).strip() if password_idx < len(row_cells) and row_cells[password_idx] is not None else ""
+                
+                if not service or not username or not password:
+                    continue # Skip incomplete rows
+                    
+                entry = {
+                    "id": str(uuid.uuid4()),
+                    "service": service,
+                    "username": username,
+                    "password": password
+                }
+                self.vault_mgr.passwords.append(entry)
+                imported_count += 1
+                
+            # Auto save the vault if we imported anything
+            if imported_count > 0:
+                self.vault_mgr.save_vault()
+                
+            return {"success": True, "cancelled": False, "count": imported_count}
+            
+        except Exception as e:
+            return {"success": False, "error": f"Failed to parse Excel file: {str(e)}"}
+        finally:
+            # Always remove the temporary decrypted file
+            if temp_decrypted_path and os.path.exists(temp_decrypted_path):
+                try:
+                    os.remove(temp_decrypted_path)
+                except Exception as ex:
+                    print(f"Error removing temporary decrypted import file: {ex}")
 
 def auto_compile_exe():
     if getattr(sys, 'frozen', False):

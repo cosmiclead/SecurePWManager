@@ -1,2 +1,4 @@
 pywebview>=5.0.0
 cryptography>=42.0.0
+openpyxl>=3.1.0
+msoffcrypto-tool>=6.0.0

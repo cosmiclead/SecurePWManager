@@ -77,6 +77,8 @@
         <h1>Secure Password Vault</h1>
         <div class="vault-actions">
           <button id="show-change-pw-btn" class="btn btn-secondary">Change Master Password</button>
+          <button id="show-export-btn" class="btn btn-secondary">Export Excel</button>
+          <button id="show-import-btn" class="btn btn-secondary">Import Excel</button>
           <button id="lock-vault-btn" class="btn btn-danger">Lock Vault</button>
         </div>
       </div>
@@ -101,6 +103,40 @@
           <button id="cancel-change-pw-btn" class="btn btn-secondary">Cancel</button>
         </div>
         <p id="change-pw-error-msg" class="error-msg" style="display: none;"></p>
+      </div>
+
+      <!-- Export Credentials Form Modal -->
+      <div id="export-vault-modal" class="modal-section" style="display: none;">
+        <h3>Export Credentials to Excel</h3>
+        <p>Export your credentials to a password-protected Excel file. The file will be encrypted using your Master Password.</p>
+        <div class="form-row">
+          <div class="form-group" style="width: 100%;">
+            <label for="export-master-password">Confirm Master Password</label>
+            <input type="password" id="export-master-password" placeholder="Enter master password to authorize and encrypt">
+          </div>
+        </div>
+        <div class="form-row-buttons">
+          <button id="submit-export-btn" class="btn btn-primary" style="width: auto;">Export</button>
+          <button id="cancel-export-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+        <p id="export-error-msg" class="error-msg" style="display: none;"></p>
+      </div>
+
+      <!-- Import Credentials Form Modal -->
+      <div id="import-vault-modal" class="modal-section" style="display: none;">
+        <h3>Import Credentials from Excel</h3>
+        <p>Select an Excel file (`.xlsx`) to import credentials. If the file is password-protected, enter the password below. (Otherwise, leave blank).</p>
+        <div class="form-row">
+          <div class="form-group" style="width: 100%;">
+            <label for="import-excel-password">Excel Decryption Password (Optional)</label>
+            <input type="password" id="import-excel-password" placeholder="Leave blank if Excel is not encrypted">
+          </div>
+        </div>
+        <div class="form-row-buttons">
+          <button id="submit-import-btn" class="btn btn-primary" style="width: auto;">Select File & Import</button>
+          <button id="cancel-import-btn" class="btn btn-secondary">Cancel</button>
+        </div>
+        <p id="import-error-msg" class="error-msg" style="display: none;"></p>
       </div>
 
       <!-- Add/Edit Password Form -->

@@ -232,6 +232,15 @@ function lockVault() {
   document.getElementById('new-master-pw').value = '';
   document.getElementById('confirm-new-master-pw').value = '';
   document.getElementById('change-pw-modal').style.display = 'none';
+  
+  // Reset export inputs
+  document.getElementById('export-master-password').value = '';
+  document.getElementById('export-vault-modal').style.display = 'none';
+  
+  // Reset import inputs
+  document.getElementById('import-excel-password').value = '';
+  document.getElementById('import-vault-modal').style.display = 'none';
+  
   document.getElementById('dorse-config-modal').style.display = 'none';
   document.getElementById('dorse-translator-section').style.display = 'none';
   
@@ -508,6 +517,8 @@ document.getElementById('show-change-pw-btn').addEventListener('click', () => {
   const modal = document.getElementById('change-pw-modal');
   modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
   document.getElementById('change-pw-error-msg').style.display = 'none';
+  document.getElementById('export-vault-modal').style.display = 'none'; // Hide export modal
+  document.getElementById('import-vault-modal').style.display = 'none'; // Hide import modal
 });
 
 document.getElementById('cancel-change-pw-btn').addEventListener('click', () => {
@@ -556,6 +567,109 @@ document.getElementById('submit-change-pw-btn').addEventListener('click', () => 
     }
   });
 });
+
+// Export Credentials Excel Modal Actions
+document.getElementById('show-export-btn').addEventListener('click', () => {
+  const modal = document.getElementById('export-vault-modal');
+  modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('export-error-msg').style.display = 'none';
+  document.getElementById('export-master-password').value = '';
+  document.getElementById('change-pw-modal').style.display = 'none'; // Hide change password modal
+  document.getElementById('import-vault-modal').style.display = 'none'; // Hide import modal
+  if (modal.style.display === 'block') {
+    document.getElementById('export-master-password').focus();
+  }
+});
+
+document.getElementById('cancel-export-btn').addEventListener('click', () => {
+  document.getElementById('export-vault-modal').style.display = 'none';
+  document.getElementById('export-master-password').value = '';
+  document.getElementById('export-error-msg').style.display = 'none';
+});
+
+document.getElementById('export-master-password').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    handleExportSubmit();
+  }
+});
+
+document.getElementById('submit-export-btn').addEventListener('click', handleExportSubmit);
+
+function handleExportSubmit() {
+  const passwordInput = document.getElementById('export-master-password');
+  const password = passwordInput.value;
+  const errorEl = document.getElementById('export-error-msg');
+  
+  if (!password) {
+    errorEl.innerText = "Master password is required to encrypt the export file.";
+    errorEl.style.display = 'block';
+    return;
+  }
+  
+  errorEl.style.display = 'none';
+  
+  window.pywebview.api.export_credentials_excel(password).then(response => {
+    if (response.success) {
+      passwordInput.value = '';
+      document.getElementById('export-vault-modal').style.display = 'none';
+      if (!response.cancelled) {
+        alert("Credentials successfully exported to password-protected Excel file!");
+      }
+    } else {
+      errorEl.innerText = response.error;
+      errorEl.style.display = 'block';
+    }
+  });
+}
+
+// Import Credentials Excel Modal Actions
+document.getElementById('show-import-btn').addEventListener('click', () => {
+  const modal = document.getElementById('import-vault-modal');
+  modal.style.display = modal.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('import-error-msg').style.display = 'none';
+  document.getElementById('import-excel-password').value = '';
+  document.getElementById('change-pw-modal').style.display = 'none'; // Hide change password modal
+  document.getElementById('export-vault-modal').style.display = 'none'; // Hide export modal
+  if (modal.style.display === 'block') {
+    document.getElementById('import-excel-password').focus();
+  }
+});
+
+document.getElementById('cancel-import-btn').addEventListener('click', () => {
+  document.getElementById('import-vault-modal').style.display = 'none';
+  document.getElementById('import-excel-password').value = '';
+  document.getElementById('import-error-msg').style.display = 'none';
+});
+
+document.getElementById('import-excel-password').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    handleImportSubmit();
+  }
+});
+
+document.getElementById('submit-import-btn').addEventListener('click', handleImportSubmit);
+
+function handleImportSubmit() {
+  const passwordInput = document.getElementById('import-excel-password');
+  const password = passwordInput.value;
+  const errorEl = document.getElementById('import-error-msg');
+  
+  errorEl.style.display = 'none';
+  
+  window.pywebview.api.import_credentials_excel(password).then(response => {
+    if (response.success) {
+      passwordInput.value = '';
+      document.getElementById('import-vault-modal').style.display = 'none';
+      if (!response.cancelled) {
+        alert(`Successfully imported ${response.count} credentials!`);
+        loadPasswords(); // Refresh DOM table
+      }
+    } else {
+      errorEl.innerText = response.error;
+      errorEl.style.display = 'block';
+    }
+  });
+}
 
 
 /* ==========================================================
